@@ -46,20 +46,45 @@ void static inline BMAS_dvec_store_multi(
 
 BMAS_ivec static inline BMAS_ivec_make(
   void* ptr, const long stride, const int elt_size){
-  char* cptr = (char*) ptr;
-  const long cstride = stride*elt_size;
-  BMAS_ivec v;
-  const int nelt = SIMD_SINGLE_STRIDE*4/elt_size;
-  for(int i=0; i<nelt; i++) v[i] = cptr[i*cstride];
-  return v;
+
+  if (elt_size == 1){
+    return BMAS_ivec_make_i8 (ptr, stride);
+  }else if (elt_size == 2){
+    return BMAS_ivec_make_i16(ptr, stride);
+  }else if (elt_size == 4){
+    return BMAS_ivec_make_i32(ptr, stride);
+  }else if (elt_size == 8){
+    return BMAS_ivec_make_i64(ptr, stride);
+  }
 }
 
+BMAS_ivech static inline BMAS_ivech_make(
+  void* ptr, const long stride, const int elt_size){
+
+  if (elt_size == 1){
+    return BMAS_ivech_make_i8 (ptr, stride);
+  }else if (elt_size == 2){
+    return BMAS_ivech_make_i16(ptr, stride);
+  }else if (elt_size == 4){
+    return BMAS_ivech_make_i32(ptr, stride);
+  }else if (elt_size == 8){
+    return BMAS_ivech_make_i64(ptr, stride);
+  }
+}
+
+#include <stdio.h>
 void static inline BMAS_ivec_store_multi(
   BMAS_ivec v, void* ptr, const long stride, const int elt_size){
-  char* cptr = (char*) ptr;
-  const long cstride = stride*elt_size;
-  const int nelt = SIMD_SINGLE_STRIDE*4/elt_size;
-  for(int i=0; i<nelt; i++) cptr[i*cstride] = v[i];
+  printf("elt_size: %d\n", elt_size);
+  if (elt_size == 1){
+    BMAS_ivec_store_multi_i8 (v, ptr, stride);
+  }else if (elt_size == 2){
+    BMAS_ivec_store_multi_i16(v, ptr, stride);
+  }else if (elt_size == 4){
+    BMAS_ivec_store_multi_i32(v, ptr, stride);
+  }else if (elt_size == 8){
+    BMAS_ivec_store_multi_i64(v, ptr, stride);
+  }
 }
 
 
@@ -67,6 +92,7 @@ void static inline BMAS_ivec_store_multi(
 #include "two_arg_fn_body.h"
 #include "comparison.h"
 #include "cast.h"
+#include "copy.h"
 
 one_arg_fn_body(ssin, SIMD_SINGLE_STRIDE, float, BMAS_svec, float, BMAS_svec);
 one_arg_fn_body(scos, SIMD_SINGLE_STRIDE, float, BMAS_svec, float, BMAS_svec);
@@ -173,15 +199,16 @@ two_arg_fn_body_comparison(dgt,  SIMD_DOUBLE_STRIDE, double, BMAS_dvec, BMAS_dbo
 
 
 // Integer Arithmetic
+
 two_arg_fn_body(i64add, SIMD_SINGLE_STRIDE/2, int64_t, BMAS_ivec, int64_t, BMAS_ivec);
 two_arg_fn_body(i32add, SIMD_SINGLE_STRIDE,   int32_t, BMAS_ivec, int32_t, BMAS_ivec);
 two_arg_fn_body(i16add, SIMD_SINGLE_STRIDE*2, int16_t, BMAS_ivec, int16_t, BMAS_ivec);
 two_arg_fn_body(i8add,  SIMD_SINGLE_STRIDE*4, int8_t,  BMAS_ivec, int8_t,  BMAS_ivec);
 
-two_arg_fn_body(u64add, SIMD_SINGLE_STRIDE/2, uint64_t, BMAS_ivec, uint64_t, BMAS_ivec);
-two_arg_fn_body(u32add, SIMD_SINGLE_STRIDE,   uint32_t, BMAS_ivec, uint32_t, BMAS_ivec);
-two_arg_fn_body(u16add, SIMD_SINGLE_STRIDE*2, uint16_t, BMAS_ivec, uint16_t, BMAS_ivec);
-two_arg_fn_body(u8add,  SIMD_SINGLE_STRIDE*4, uint8_t,  BMAS_ivec, uint8_t,  BMAS_ivec);
+two_arg_fn_body(i64sub, SIMD_SINGLE_STRIDE/2, int64_t, BMAS_ivec, int64_t, BMAS_ivec);
+two_arg_fn_body(i32sub, SIMD_SINGLE_STRIDE,   int32_t, BMAS_ivec, int32_t, BMAS_ivec);
+two_arg_fn_body(i16sub, SIMD_SINGLE_STRIDE*2, int16_t, BMAS_ivec, int16_t, BMAS_ivec);
+two_arg_fn_body(i8sub,  SIMD_SINGLE_STRIDE*4, int8_t,  BMAS_ivec, int8_t,  BMAS_ivec);
 
 
 /* // two_arg_fn_body(copysign); */
