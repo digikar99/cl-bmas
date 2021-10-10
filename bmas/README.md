@@ -1,6 +1,7 @@
 # BMAS - Basic Mathematical Subprograms
 
 > Run `bash make.sh` to build; modify for non-gcc / non-avx2 platforms.
+> The interface to this library is not stable yet. Potential future changes include naming of bitwise operators. 
 
 This library intends to provide functions for operating on vectors of numbers.
 The function signatures are based on BLAS L1 functions, and comprise of:
@@ -9,10 +10,13 @@ The function signatures are based on BLAS L1 functions, and comprise of:
 BMAS_{ITYPE}{name}(long n, {type* ptr, long inc_ptr}*)
 ```
 
+- ITYPE can be one of `s d i8 i16 i32 i64 u8 u16 u32 u64`
 - n - number of elements to operate upon
 - ptr, inc_ptr - one or more pairs of pointer to vector, and stride
 
 For example, the function `BMAS_ssin(n, float* in, long inc_in, float* out, long inc_out)` calculates the sin of the single-floating point numbers in the vector defined by (in, inc\_in) and stores the result in the vector defined by (out, inc\_out).
+
+Exceptions for this pattern include `BMAS_cast_{ITYPE}{OTYPE}` function for converting from ITYPE to OTYPE.
 
 See the [bmas.h](./bmas.h) for the list of currently provided functions.
 
@@ -30,8 +34,11 @@ SSE and AVX512 support exists to a limited extent due to limited developer time.
 
 ### Copy and Conversions
 
+- `BMAS_cast_{ITYPE}{OTYPE}`
+- `BMAS_{TYPE}copy`
+
 | From \ To | float32 | float64 | int64 | int32 | int16 | int8 | uint64 | uint32 | uint16 | uint8 |
-|-----------|---------|---------|-------|-------|-------|------|--------|--------|--------|-------|
+|----------:|:-------:|:-------:|:-----:|:-----:|:-----:|:----:|:------:|:------:|:------:|:-----:|
 | float32   | +       | +       | -     | -     | -     | -    | -      | -      | -      | -     |
 | float64   | +       | +       | -     | -     | -     | -    | -      | -      | -      | -     |
 | int64     | +       | +       | +     | -     | -     | -    | -      | -      | -      | -     |
@@ -45,51 +52,72 @@ SSE and AVX512 support exists to a limited extent due to limited developer time.
 
 ### Functions
 
-| Function \ Data type | float32 | float64 | int64 | int32 | int16 | int8 |
-|----------------------|---------|---------|-------|-------|-------|------|
-| add                  | +       | +       | +     | +     | +     | +    |
-| sub                  | +       | +       | +     | +     | +     | +    |
-| mul                  | +       | +       | -     | -     | -     | -    |
-| div                  | +       | +       | -     | -     | -     | -    |
-| lt                   | +       | +       | -     | -     | -     | -    |
-| le                   | +       | +       | -     | -     | -     | -    |
-| eq                   | +       | +       | -     | -     | -     | -    |
-| neq                  | +       | +       | -     | -     | -     | -    |
-| gt                   | +       | +       | -     | -     | -     | -    |
-| ge                   | +       | +       | -     | -     | -     | -    |
-|----------------------|---------|---------|-------|-------|-------|------|
-| fabs                 | +       | +       | -     | -     | -     | -    |
-| trunc                | +       | +       | NA    | NA    | NA    | NA   |
-| floor                | +       | +       | NA    | NA    | NA    | NA   |
-| ceil                 | +       | +       | NA    | NA    | NA    | NA   |
-| round                | +       | +       | NA    | NA    | NA    | NA   |
-|----------------------|---------|---------|-------|-------|-------|------|
-| sin                  | +       | +       | NA    | NA    | NA    | NA   |
-| cos                  | +       | +       | NA    | NA    | NA    | NA   |
-| tan                  | +       | +       | NA    | NA    | NA    | NA   |
-| asin                 | +       | +       | NA    | NA    | NA    | NA   |
-| acos                 | +       | +       | NA    | NA    | NA    | NA   |
-| atan                 | +       | +       | NA    | NA    | NA    | NA   |
-| sinh                 | +       | +       | NA    | NA    | NA    | NA   |
-| cosh                 | +       | +       | NA    | NA    | NA    | NA   |
-| tanh                 | +       | +       | NA    | NA    | NA    | NA   |
-| asinh                | +       | +       | NA    | NA    | NA    | NA   |
-| acosh                | +       | +       | NA    | NA    | NA    | NA   |
-| atanh                | +       | +       | NA    | NA    | NA    | NA   |
-|----------------------|---------|---------|-------|-------|-------|------|
-| pow                  | +       | +       | -     | -     | -     | -    |
-| atan2                | +       | +       | NA    | NA    | NA    | NA   |
-| log                  | +       | +       | NA    | NA    | NA    | NA   |
-| log2                 | +       | +       | NA    | NA    | NA    | NA   |
-| log10                | +       | +       | NA    | NA    | NA    | NA   |
-| log1p                | +       | +       | NA    | NA    | NA    | NA   |
-| exp                  | +       | +       | NA    | NA    | NA    | NA   |
-| exp2                 | +       | +       | NA    | NA    | NA    | NA   |
-| exp10                | +       | +       | NA    | NA    | NA    | NA   |
-| expm1                | +       | +       | NA    | NA    | NA    | NA   |
+| Function \ Data type               | float32 | float64 | int64 | int32 | int16 | int8 | uint64 | uint32 | uint16 | uint8 |
+|------------------------------------|:-------:|:-------:|:-----:|:-----:|:-----:|:----:|:------:|:------:|:------:|:-----:|
+| add                                | +       | +       | +     | +     | +     | +    | -      | -      | -      | -     |
+| sub                                | +       | +       | +     | +     | +     | +    | -      | -      | -      | -     |
+| mul                                | +       | +       | +     | +     | +     | +    | +      | +      | +      | +     |
+| div                                | +       | +       | -     | -     | -     | -    | -      | -      | -      | -     |
+| abs (also fabs below)              | -       | -       | +     | +     | +     | +    | -      | -      | -      | -     |
+| sum                                | +       | +       | +     | +     | +     | +    | -      | -      | -      | -     |
+| dot                                | +       | +       | +     | +     | +     | +    | -      | -      | -      | -     |
+| **Function \ Data type**           | float32 | float64 | int64 | int32 | int16 | int8 | uint64 | uint32 | uint16 | uint8 |
+| lt                                 | +       | +       | +     | +     | +     | +    | +      | +      | +      | +     |
+| le                                 | +       | +       | +     | +     | +     | +    | +      | +      | +      | +     |
+| eq                                 | +       | +       | +     | +     | +     | +    | +      | +      | +      | +     |
+| neq                                | +       | +       | +     | +     | +     | +    | +      | +      | +      | +     |
+| gt                                 | +       | +       | +     | +     | +     | +    | +      | +      | +      | +     |
+| ge                                 | +       | +       | +     | +     | +     | +    | +      | +      | +      | +     |
+| **Function \ Data type (Bitwise)** | float32 | float64 | int64 | int32 | int16 | int8 | uint64 | uint32 | uint16 | uint8 |
+| not                                | -       | -       | -     | -     | -     | +    | -      | -      | -      | -     |
+| and                                | -       | -       | -     | -     | -     | +    | -      | -      | -      | -     |
+| or                                 | -       | -       | -     | -     | -     | +    | -      | -      | -      | -     |
+| nor                                | -       | -       | -     | -     | -     | +    | -      | -      | -      | -     |
+| andnot                             | -       | -       | -     | -     | -     | +    | -      | -      | -      | -     |
+
+
+
+| Function \ Data type | float32 | float64 |
+|----------------------|:-------:|:-------:|
+| fabs                 | +       | +       |
+| trunc                | +       | +       |
+| floor                | +       | +       |
+| ceil                 | +       | +       |
+| round                | +       | +       |
+|----------------------|:-------:|:-------:|
+| sin                  | +       | +       |
+| cos                  | +       | +       |
+| tan                  | +       | +       |
+| asin                 | +       | +       |
+| acos                 | +       | +       |
+| atan                 | +       | +       |
+| sinh                 | +       | +       |
+| cosh                 | +       | +       |
+| tanh                 | +       | +       |
+| asinh                | +       | +       |
+| acosh                | +       | +       |
+| atanh                | +       | +       |
+|----------------------|:-------:|:-------:|
+| pow                  | +       | +       |
+| atan2                | +       | +       |
+| log                  | +       | +       |
+| log2                 | +       | +       |
+| log10                | +       | +       |
+| log1p                | +       | +       |
+| exp                  | +       | +       |
+| exp2                 | +       | +       |
+| exp10                | +       | +       |
+| expm1                | +       | +       |
+|----------------------|:-------:|:-------:|
 
 
 ## Disclaimer
 
 I am not primarily a C developer, and thus might not abide by the C conventions. A simple example is I'm using a `make.sh` instead of a `Makefile`. This may change once (re)learning these things becomes a higher priority for me.
 
+## Credits
+
+Include but not limited to:
+
+- https://stackoverflow.com/questions/41144668/how-to-efficiently-perform-double-int64-conversions-with-sse-avx
+- https://stackoverflow.com/a/37322570/8957330

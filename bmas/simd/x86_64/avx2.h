@@ -1,7 +1,8 @@
 
-typedef __m128 BMAS_svech; // half
 typedef __m256 BMAS_svec;
+typedef __m128 BMAS_svech; // half
 typedef __m256d BMAS_dvec;
+typedef __m128d BMAS_dvech; // half
 typedef __m256 BMAS_sbool;
 typedef __m256d BMAS_dbool;
 typedef __m256i BMAS_ivec;
@@ -9,6 +10,10 @@ typedef __m128i BMAS_ivech;
 
 #define SIMD_SINGLE_STRIDE 8
 #define SIMD_DOUBLE_STRIDE 4
+
+BMAS_svec static inline BMAS_vector_szero(){return _mm256_setzero_ps();}
+BMAS_dvec static inline BMAS_vector_dzero(){return _mm256_setzero_pd();}
+BMAS_ivec static inline BMAS_vector_izero(){return _mm256_setzero_si256();}
 
 // store-load
 
@@ -18,12 +23,141 @@ void static inline BMAS_svec_store(float* ptr, BMAS_svec v){ return _mm256_store
 BMAS_dvec static inline BMAS_dvec_load(double* ptr){ return _mm256_loadu_pd(ptr); }
 void static inline BMAS_dvec_store(double* ptr, BMAS_dvec v){ return _mm256_storeu_pd(ptr, v); }
 
-void static inline BMAS_svec_store_bool(BMAS_sbool v, _Bool* ptr, const long stride){
-  for(int i=0; i<SIMD_SINGLE_STRIDE; i++) (ptr+i*stride)[0] = v[i];
+void static inline BMAS_svec_store_bool(_Bool* ptr, const long stride, BMAS_sbool v, const int elt_size){
+  const int simd_len = 256 / elt_size;
+  for(int i=0; i<simd_len; i++) (ptr+i*stride)[0] = v[i];
 }
-void static inline BMAS_dvec_store_bool(BMAS_dbool v, _Bool* ptr, const long stride){
-  for(int i=0; i<SIMD_DOUBLE_STRIDE; i++) (ptr+i*stride)[0] = v[i];
+
+void static inline BMAS_svec_store_boolx4(_Bool* ptr,
+                                          BMAS_sbool v1, BMAS_sbool v2,
+                                          BMAS_sbool v3, BMAS_sbool v4,
+                                          const int elt_size){
+  BMAS_ivec vi1 = _mm256_castps_si256(v1);
+  BMAS_ivec vi2 = _mm256_castps_si256(v2);
+  BMAS_ivec vi3 = _mm256_castps_si256(v3);
+  BMAS_ivec vi4 = _mm256_castps_si256(v4);
+
+  // Packing on AVX2 interleaves the registers
+  BMAS_ivec vi5 = _mm256_packs_epi32(vi1, vi2);
+  vi5 = _mm256_permute4x64_epi64(vi5, 0b11011000);
+  BMAS_ivec vi6 = _mm256_packs_epi32(vi3, vi4);
+  vi6 = _mm256_permute4x64_epi64(vi6, 0b11011000);
+
+  BMAS_ivec vi = _mm256_packs_epi16(vi5, vi6);
+  vi = _mm256_permute4x64_epi64(vi, 0b11011000);
+
+  vi = _mm256_and_si256(vi,
+                        _mm256_set_epi32(0x01010101, 0x01010101, 0x01010101, 0x01010101,
+                                         0x01010101, 0x01010101, 0x01010101, 0x01010101));
+  _mm256_storeu_si256((__m256i*)(ptr), vi);
 }
+
+void static inline BMAS_dvec_store_bool(_Bool* ptr, const long stride, BMAS_dbool v, const int elt_size){
+  const int simd_len = 256 / elt_size;
+  for(int i=0; i<simd_len; i++) (ptr+i*stride)[0] = v[i];
+}
+
+void static inline BMAS_dvec_store_boolx4(_Bool* ptr,
+                                          BMAS_dbool v1, BMAS_dbool v2,
+                                          BMAS_dbool v3, BMAS_dbool v4,
+                                          const int elt_size){
+  // Permute to shift to lower 128 bits and then extract
+  BMAS_ivec idx = _mm256_set_epi32(7, 7, 7, 7, 6, 4, 2, 0);
+  BMAS_ivec vi1 = _mm256_castpd_si256(v1);
+  BMAS_ivec vi2 = _mm256_castpd_si256(v2);
+  BMAS_ivec vi3 = _mm256_castpd_si256(v3);
+  BMAS_ivec vi4 = _mm256_castpd_si256(v4);
+  vi1 = _mm256_permutevar8x32_epi32(vi1, idx);
+  vi2 = _mm256_permutevar8x32_epi32(vi2, idx);
+  vi3 = _mm256_permutevar8x32_epi32(vi3, idx);
+  vi4 = _mm256_permutevar8x32_epi32(vi4, idx);
+
+  BMAS_ivech vih1 = _mm256_castsi256_si128(vi1);
+  BMAS_ivech vih2 = _mm256_castsi256_si128(vi2);
+  BMAS_ivech vih3 = _mm256_castsi256_si128(vi3);
+  BMAS_ivech vih4 = _mm256_castsi256_si128(vi4);
+
+  BMAS_ivech vih5 = _mm_packs_epi32(vih1, vih2);
+  BMAS_ivech vih6 = _mm_packs_epi32(vih3, vih4);
+
+  BMAS_ivech vih = _mm_packs_epi16(vih5, vih6);
+  vih = _mm_and_si128(vih, _mm_set_epi32(0x01010101, 0x01010101, 0x01010101, 0x01010101));
+  _mm_storeu_si128((__m128i*)(ptr), vih);
+}
+
+void static inline BMAS_ivec_store_boolx1(_Bool* ptr, BMAS_ivec v){
+  v = _mm256_and_si256(v,
+                       _mm256_set_epi32(0x01010101, 0x01010101, 0x01010101, 0x01010101,
+                                        0x01010101, 0x01010101, 0x01010101, 0x01010101));
+  _mm256_storeu_si256((__m256i*)ptr, v);
+}
+void static inline BMAS_ivec_store_boolx2(_Bool* ptr, BMAS_ivec v1, BMAS_ivec v2){
+  // It is implicit that v1 and v2 contain 16 bit integers;
+  // so that 32 8-bit Bools would make up 2 registers of 16 bit integers
+  BMAS_ivec v = _mm256_packs_epi16(v1, v2);
+  v = _mm256_permute4x64_epi64(v, 0b11011000);
+  v = _mm256_and_si256(v,
+                       _mm256_set_epi32(0x01010101, 0x01010101, 0x01010101, 0x01010101,
+                                        0x01010101, 0x01010101, 0x01010101, 0x01010101));
+  _mm256_storeu_si256((__m256i*)ptr, v);
+}
+void static inline BMAS_ivec_store_boolx4(_Bool* ptr, BMAS_ivec v1, BMAS_ivec v2, BMAS_ivec v3, BMAS_ivec v4, const int elt_size){
+  if (elt_size == 4){
+    // Packing on AVX2 interleaves the registers
+    BMAS_ivec v5 = _mm256_packs_epi32(v1, v2);
+    v5 = _mm256_permute4x64_epi64(v5, 0b11011000);
+    BMAS_ivec v6 = _mm256_packs_epi32(v3, v4);
+    v6 = _mm256_permute4x64_epi64(v6, 0b11011000);
+    BMAS_ivec v = _mm256_packs_epi16(v5, v6);
+    v = _mm256_permute4x64_epi64(v, 0b11011000);
+    v = _mm256_and_si256(v,
+                         _mm256_set_epi32(0x01010101, 0x01010101, 0x01010101, 0x01010101,
+                                          0x01010101, 0x01010101, 0x01010101, 0x01010101));
+    _mm256_storeu_si256((__m256i*)ptr, v);
+  }else{ // elt_size == 8
+    // Permute to shift to lower 128 bits and then extract
+    BMAS_ivec idx = _mm256_set_epi32(7, 7, 7, 7, 6, 4, 2, 0);
+    v1 = _mm256_permutevar8x32_epi32(v1, idx);
+    v2 = _mm256_permutevar8x32_epi32(v2, idx);
+    v3 = _mm256_permutevar8x32_epi32(v3, idx);
+    v4 = _mm256_permutevar8x32_epi32(v4, idx);
+
+    BMAS_ivech vh1 = _mm256_castsi256_si128(v1);
+    BMAS_ivech vh2 = _mm256_castsi256_si128(v2);
+    BMAS_ivech vh3 = _mm256_castsi256_si128(v3);
+    BMAS_ivech vh4 = _mm256_castsi256_si128(v4);
+
+    BMAS_ivech vh5 = _mm_packs_epi32(vh1, vh2);
+    BMAS_ivech vh6 = _mm_packs_epi32(vh3, vh4);
+
+    BMAS_ivech vh = _mm_packs_epi16(vh5, vh6);
+    vh = _mm_and_si128(vh, _mm_set_epi32(0x01010101, 0x01010101, 0x01010101, 0x01010101));
+    _mm_storeu_si128((__m128i*)(ptr), vh);
+  }
+}
+
+#define V_EXTRACT64_AND_SET_BOOL_PTR(I) ptr[I*stride] = (_Bool)_mm256_extract_epi64(v, I);
+#define V_EXTRACT32_AND_SET_BOOL_PTR(I) ptr[I*stride] = (_Bool)_mm256_extract_epi32(v, I);
+#define V_EXTRACT16_AND_SET_BOOL_PTR(I) ptr[I*stride] = (_Bool)_mm256_extract_epi16(v, I);
+#define V_EXTRACT8_AND_SET_BOOL_PTR(I)  ptr[I*stride] = (_Bool)_mm256_extract_epi8 (v, I);
+
+void static inline BMAS_ivec_store_bool(_Bool* ptr, const long stride, BMAS_ivec v, const int elt_size){
+  if (elt_size == 8){
+    // 64 bit integers
+    MACRO_LOOP(4, V_EXTRACT64_AND_SET_BOOL_PTR);
+  }else if(elt_size == 4){
+    MACRO_LOOP(8, V_EXTRACT32_AND_SET_BOOL_PTR);
+  }else if(elt_size == 2){
+    MACRO_LOOP(16, V_EXTRACT16_AND_SET_BOOL_PTR);
+  }else if(elt_size == 1){
+    MACRO_LOOP(32, V_EXTRACT8_AND_SET_BOOL_PTR);
+  }
+}
+
+#undef V_EXTRACT64_AND_SET_BOOL_PTR
+#undef V_EXTRACT32_AND_SET_BOOL_PTR
+#undef V_EXTRACT16_AND_SET_BOOL_PTR
+#undef V_EXTRACT8_AND_SET_BOOL_PTR
 
 BMAS_svech static inline BMAS_svech_load(float* ptr){ return _mm_loadu_ps(ptr);}
 void static inline BMAS_svech_store(float* ptr, BMAS_svech v){ return _mm_storeu_ps(ptr, v);}
@@ -112,7 +246,7 @@ BMAS_svech static inline BMAS_ivec_to_svech_u64(BMAS_ivec v){
 
 
 
-// basic float arithmetic
+// basic arithmetic and sum and dot
 
 BMAS_svec static inline BMAS_vector_sadd(BMAS_svec a, BMAS_svec b){return _mm256_add_ps(a, b);}
 BMAS_svec static inline BMAS_vector_ssub(BMAS_svec a, BMAS_svec b){return _mm256_sub_ps(a, b);}
@@ -124,8 +258,70 @@ BMAS_dvec static inline BMAS_vector_dsub(BMAS_dvec a, BMAS_dvec b){return _mm256
 BMAS_dvec static inline BMAS_vector_dmul(BMAS_dvec a, BMAS_dvec b){return _mm256_mul_pd(a, b);}
 BMAS_dvec static inline BMAS_vector_ddiv(BMAS_dvec a, BMAS_dvec b){return _mm256_div_pd(a, b);}
 
+float static inline BMAS_vector_ssum(BMAS_svec a){
+  BMAS_svech v1 = _mm256_castps256_ps128(a);
+  BMAS_svech v2 = _mm256_extractf128_ps(a, 1);
+  BMAS_svech v3 = _mm_add_ps(v1, v2); // 4 2-sums
+  // 1st and 2nd elements of v4 should be from the 3rd and 4th of v3 (1-indexed)
+  BMAS_svech v4 = _mm_permute_ps(v3, 0b11101110);
+  BMAS_svech v5 = _mm_add_ps(v3, v4); // 2 4-sums
+  // 1st element of v6 should be from the second element of v5
+  BMAS_svech v6 = _mm_permute_ps(v5, 0b01010101);
+  BMAS_svech v = _mm_add_ps(v5, v6);
+  return _mm_cvtss_f32(v);
+}
+
+double static inline BMAS_vector_dsum(BMAS_dvec a){
+  BMAS_dvech v1 = _mm256_castpd256_pd128(a);
+  BMAS_dvech v2 = _mm256_extractf128_pd(a, 1);
+  BMAS_dvech v3 = _mm_add_pd(v1, v2); // 2 2-sums
+  // move the 2nd element to 1st position
+  BMAS_dvech v4 = _mm_permute_pd(v3, 0b01);
+  BMAS_dvech v = _mm_add_pd(v3, v4);
+  return _mm_cvtsd_f64(v);
+}
+
+int64_t static inline BMAS_vector_i64sum(BMAS_ivec a){
+  BMAS_ivech v1 = _mm256_castsi256_si128(a);
+  BMAS_ivech v2 = _mm256_extracti128_si256(a, 1);
+  BMAS_ivech v3 = _mm_add_epi64(v1, v2); // 2 2-sums
+  // move the 2nd element to 1st position
+  BMAS_ivech v4 = _mm_bsrli_si128(v3, 8);
+  BMAS_ivech v = _mm_add_epi64(v3, v4);
+  return _mm_extract_epi64(v, 0);
+}
+
+int32_t static inline BMAS_vector_i32sum(BMAS_ivec a){
+  BMAS_ivech v1 = _mm256_castsi256_si128(a);
+  BMAS_ivech v2 = _mm256_extracti128_si256(a, 1);
+  BMAS_ivech v3 = _mm_add_epi32(v1, v2); // 4 2-sums
+  // 1st and 2nd elements of v4 should be from the 3rd and 4th of v3 (1-indexed)
+  BMAS_ivech v4 = _mm_bsrli_si128(v3, 8);
+  BMAS_ivech v5 = _mm_add_epi32(v3, v4); // 2 4-sums
+  // 1st element of v6 should be from the second element of v5
+  BMAS_ivech v6 = _mm_bsrli_si128(v5, 4);
+  BMAS_ivech v = _mm_add_epi32(v5, v6);
+  return _mm_extract_epi32(v, 0);
+}
+
+int16_t static inline BMAS_vector_i16sum(BMAS_ivec a){
+  BMAS_ivech v1 = _mm256_castsi256_si128(a);
+  BMAS_ivech v2 = _mm256_extracti128_si256(a, 1);
+  BMAS_ivec v1e = _mm256_cvtepi16_epi32(v1);
+  BMAS_ivec v2e = _mm256_cvtepi16_epi32(v2);
+  return BMAS_vector_i32sum(v1e) + BMAS_vector_i32sum(v2e);
+}
+
+int8_t static inline BMAS_vector_i8sum(BMAS_ivec a){
+  BMAS_ivech v1 = _mm256_castsi256_si128(a);
+  BMAS_ivech v2 = _mm256_extracti128_si256(a, 1);
+  BMAS_ivec v1e = _mm256_cvtepi8_epi16(v1);
+  BMAS_ivec v2e = _mm256_cvtepi8_epi16(v2);
+  return BMAS_vector_i16sum(v1e) + BMAS_vector_i16sum(v2e);
+}
+
+
 // integer insert and extract - we need to do this because compiler needs "immediates"
-// TODO: Rewrite using something like BOOST Preprocessor Library?
 
 BMAS_ivec static inline BMAS_ivec_make_i64(int64_t* ptr, const int stride){
   BMAS_ivec v;
@@ -136,77 +332,31 @@ BMAS_ivec static inline BMAS_ivec_make_i64(int64_t* ptr, const int stride){
   return v;
 }
 
+#define V256_INSERT32_FROM_PTR(I) v = _mm256_insert_epi32(v, ptr[I*stride], I);
+#define V256_INSERT16_FROM_PTR(I) v = _mm256_insert_epi16(v, ptr[I*stride], I);
+#define V256_INSERT8_FROM_PTR(I) v = _mm256_insert_epi8(v, ptr[I*stride], I);
+
 BMAS_ivec static inline BMAS_ivec_make_i32(int32_t* ptr, const int stride){
   BMAS_ivec v;
-  const long cstride = stride*4;
-  v = _mm256_insert_epi32(v, ptr[0*stride], 0);
-  v = _mm256_insert_epi32(v, ptr[1*stride], 1);
-  v = _mm256_insert_epi32(v, ptr[2*stride], 2);
-  v = _mm256_insert_epi32(v, ptr[3*stride], 3);
-  v = _mm256_insert_epi32(v, ptr[4*stride], 4);
-  v = _mm256_insert_epi32(v, ptr[5*stride], 5);
-  v = _mm256_insert_epi32(v, ptr[6*stride], 6);
-  v = _mm256_insert_epi32(v, ptr[7*stride], 7);
+  MACRO_LOOP(8, V256_INSERT32_FROM_PTR);
   return v;
 }
 
 BMAS_ivec static inline BMAS_ivec_make_i16(int16_t* ptr, const int stride){
   BMAS_ivec v;
-  v = _mm256_insert_epi16(v, ptr[0*stride], 0);
-  v = _mm256_insert_epi16(v, ptr[1*stride], 1);
-  v = _mm256_insert_epi16(v, ptr[2*stride], 2);
-  v = _mm256_insert_epi16(v, ptr[3*stride], 3);
-  v = _mm256_insert_epi16(v, ptr[4*stride], 4);
-  v = _mm256_insert_epi16(v, ptr[5*stride], 5);
-  v = _mm256_insert_epi16(v, ptr[6*stride], 6);
-  v = _mm256_insert_epi16(v, ptr[7*stride], 7);
-  v = _mm256_insert_epi16(v, ptr[8*stride], 8);
-  v = _mm256_insert_epi16(v, ptr[9*stride], 9);
-  v = _mm256_insert_epi16(v, ptr[10*stride], 10);
-  v = _mm256_insert_epi16(v, ptr[11*stride], 11);
-  v = _mm256_insert_epi16(v, ptr[12*stride], 12);
-  v = _mm256_insert_epi16(v, ptr[13*stride], 13);
-  v = _mm256_insert_epi16(v, ptr[14*stride], 14);
-  v = _mm256_insert_epi16(v, ptr[15*stride], 15);
+  MACRO_LOOP(16, V256_INSERT16_FROM_PTR);
   return v;
 }
 
 BMAS_ivec static inline BMAS_ivec_make_i8(int8_t* ptr, const int stride){
   BMAS_ivec v;
-  v = _mm256_insert_epi8(v, ptr[0*stride],  0);
-  v = _mm256_insert_epi8(v, ptr[1*stride],  1);
-  v = _mm256_insert_epi8(v, ptr[2*stride],  2);
-  v = _mm256_insert_epi8(v, ptr[3*stride],  3);
-  v = _mm256_insert_epi8(v, ptr[4*stride],  4);
-  v = _mm256_insert_epi8(v, ptr[5*stride],  5);
-  v = _mm256_insert_epi8(v, ptr[6*stride],  6);
-  v = _mm256_insert_epi8(v, ptr[7*stride],  7);
-  v = _mm256_insert_epi8(v, ptr[8*stride],  8);
-  v = _mm256_insert_epi8(v, ptr[9*stride],  9);
-  v = _mm256_insert_epi8(v, ptr[10*stride], 10);
-  v = _mm256_insert_epi8(v, ptr[11*stride], 11);
-  v = _mm256_insert_epi8(v, ptr[12*stride], 12);
-  v = _mm256_insert_epi8(v, ptr[13*stride], 13);
-  v = _mm256_insert_epi8(v, ptr[14*stride], 14);
-  v = _mm256_insert_epi8(v, ptr[15*stride], 15);
-  v = _mm256_insert_epi8(v, ptr[16*stride], 16);
-  v = _mm256_insert_epi8(v, ptr[17*stride], 17);
-  v = _mm256_insert_epi8(v, ptr[18*stride], 18);
-  v = _mm256_insert_epi8(v, ptr[19*stride], 19);
-  v = _mm256_insert_epi8(v, ptr[20*stride], 20);
-  v = _mm256_insert_epi8(v, ptr[21*stride], 21);
-  v = _mm256_insert_epi8(v, ptr[22*stride], 22);
-  v = _mm256_insert_epi8(v, ptr[23*stride], 23);
-  v = _mm256_insert_epi8(v, ptr[24*stride], 24);
-  v = _mm256_insert_epi8(v, ptr[25*stride], 25);
-  v = _mm256_insert_epi8(v, ptr[26*stride], 26);
-  v = _mm256_insert_epi8(v, ptr[27*stride], 27);
-  v = _mm256_insert_epi8(v, ptr[28*stride], 28);
-  v = _mm256_insert_epi8(v, ptr[29*stride], 29);
-  v = _mm256_insert_epi8(v, ptr[30*stride], 30);
-  v = _mm256_insert_epi8(v, ptr[31*stride], 31);
+  MACRO_LOOP(32, V256_INSERT8_FROM_PTR);
   return v;
 }
+
+#undef V256_INSERT32_FROM_PTR
+#undef V256_INSERT16_FROM_PTR
+#undef V256_INSERT8_FROM_PTR
 
 BMAS_ivech static inline BMAS_ivech_make_i64(int64_t* ptr, const int stride){
   BMAS_ivech v;
@@ -217,7 +367,6 @@ BMAS_ivech static inline BMAS_ivech_make_i64(int64_t* ptr, const int stride){
 
 BMAS_ivech static inline BMAS_ivech_make_i32(int32_t* ptr, const int stride){
   BMAS_ivech v;
-  const long cstride = stride*4;
   v = _mm_insert_epi32(v, ptr[0*stride], 0);
   v = _mm_insert_epi32(v, ptr[1*stride], 1);
   v = _mm_insert_epi32(v, ptr[2*stride], 2);
@@ -225,40 +374,23 @@ BMAS_ivech static inline BMAS_ivech_make_i32(int32_t* ptr, const int stride){
   return v;
 }
 
+#define V128_INSERT16_FROM_PTR(I) v = _mm_insert_epi16(v, ptr[I*stride], I);
+#define V128_INSERT8_FROM_PTR(I) v = _mm_insert_epi8(v, ptr[I*stride], I);
+
 BMAS_ivech static inline BMAS_ivech_make_i16(int16_t* ptr, const int stride){
   BMAS_ivech v;
-  v = _mm_insert_epi16(v, ptr[0*stride], 0);
-  v = _mm_insert_epi16(v, ptr[1*stride], 1);
-  v = _mm_insert_epi16(v, ptr[2*stride], 2);
-  v = _mm_insert_epi16(v, ptr[3*stride], 3);
-  v = _mm_insert_epi16(v, ptr[4*stride], 4);
-  v = _mm_insert_epi16(v, ptr[5*stride], 5);
-  v = _mm_insert_epi16(v, ptr[6*stride], 6);
-  v = _mm_insert_epi16(v, ptr[7*stride], 7);
+  MACRO_LOOP(8, V128_INSERT16_FROM_PTR);
   return v;
 }
 
 BMAS_ivech static inline BMAS_ivech_make_i8(int8_t* ptr, const int stride){
   BMAS_ivech v;
-  v = _mm_insert_epi8(v, ptr[0*stride],  0);
-  v = _mm_insert_epi8(v, ptr[1*stride],  1);
-  v = _mm_insert_epi8(v, ptr[2*stride],  2);
-  v = _mm_insert_epi8(v, ptr[3*stride],  3);
-  v = _mm_insert_epi8(v, ptr[4*stride],  4);
-  v = _mm_insert_epi8(v, ptr[5*stride],  5);
-  v = _mm_insert_epi8(v, ptr[6*stride],  6);
-  v = _mm_insert_epi8(v, ptr[7*stride],  7);
-  v = _mm_insert_epi8(v, ptr[8*stride],  8);
-  v = _mm_insert_epi8(v, ptr[9*stride],  9);
-  v = _mm_insert_epi8(v, ptr[10*stride], 10);
-  v = _mm_insert_epi8(v, ptr[11*stride], 11);
-  v = _mm_insert_epi8(v, ptr[12*stride], 12);
-  v = _mm_insert_epi8(v, ptr[13*stride], 13);
-  v = _mm_insert_epi8(v, ptr[14*stride], 14);
-  v = _mm_insert_epi8(v, ptr[15*stride], 15);
+  MACRO_LOOP(16, V128_INSERT8_FROM_PTR);
   return v;
 }
 
+#undef V128_INSERT16_FROM_PTR
+#undef V128_INSERT8_FROM_PTR
 
 void static inline BMAS_ivec_store_multi_i64(BMAS_ivec v, int64_t* ptr, const int stride){
   ptr[0*stride] = _mm256_extract_epi64(v, 0);
@@ -267,70 +399,23 @@ void static inline BMAS_ivec_store_multi_i64(BMAS_ivec v, int64_t* ptr, const in
   ptr[3*stride] = _mm256_extract_epi64(v, 3);
 }
 
+#define V256_EXTRACT32_FROM_PTR(I) ptr[I*stride] = _mm256_extract_epi32(v, I);
+#define V256_EXTRACT16_FROM_PTR(I) ptr[I*stride] = _mm256_extract_epi16(v, I);
+#define V256_EXTRACT8_FROM_PTR(I)  ptr[I*stride] = _mm256_extract_epi8(v, I);
+
 void static inline BMAS_ivec_store_multi_i32(BMAS_ivec v, int32_t* ptr, const int stride){
-  ptr[0*stride] = _mm256_extract_epi32(v, 0);
-  ptr[1*stride] = _mm256_extract_epi32(v, 1);
-  ptr[2*stride] = _mm256_extract_epi32(v, 2);
-  ptr[3*stride] = _mm256_extract_epi32(v, 3);
-  ptr[4*stride] = _mm256_extract_epi32(v, 4);
-  ptr[5*stride] = _mm256_extract_epi32(v, 5);
-  ptr[6*stride] = _mm256_extract_epi32(v, 6);
-  ptr[7*stride] = _mm256_extract_epi32(v, 7);
+  MACRO_LOOP(8, V256_EXTRACT32_FROM_PTR);
 }
-
 void static inline BMAS_ivec_store_multi_i16(BMAS_ivec v, int16_t* ptr, const int stride){
-  ptr[0*stride]  = _mm256_extract_epi16(v, 0);
-  ptr[1*stride]  = _mm256_extract_epi16(v, 1);
-  ptr[2*stride]  = _mm256_extract_epi16(v, 2);
-  ptr[3*stride]  = _mm256_extract_epi16(v, 3);
-  ptr[4*stride]  = _mm256_extract_epi16(v, 4);
-  ptr[5*stride]  = _mm256_extract_epi16(v, 5);
-  ptr[6*stride]  = _mm256_extract_epi16(v, 6);
-  ptr[7*stride]  = _mm256_extract_epi16(v, 7);
-  ptr[8*stride]  = _mm256_extract_epi16(v, 8);
-  ptr[9*stride]  = _mm256_extract_epi16(v, 9);
-  ptr[10*stride] = _mm256_extract_epi16(v, 10);
-  ptr[11*stride] = _mm256_extract_epi16(v, 11);
-  ptr[12*stride] = _mm256_extract_epi16(v, 12);
-  ptr[13*stride] = _mm256_extract_epi16(v, 13);
-  ptr[14*stride] = _mm256_extract_epi16(v, 14);
-  ptr[15*stride] = _mm256_extract_epi16(v, 15);
+  MACRO_LOOP(16, V256_EXTRACT16_FROM_PTR);
+}
+void static inline BMAS_ivec_store_multi_i8(BMAS_ivec v, int8_t* ptr, const int stride){
+  MACRO_LOOP(32, V256_EXTRACT8_FROM_PTR);
 }
 
-void static inline BMAS_ivec_store_multi_i8(BMAS_ivec v, int8_t* ptr, const int stride){
-  ptr[0*stride]  = _mm256_extract_epi8(v, 0);
-  ptr[1*stride]  = _mm256_extract_epi8(v, 1);
-  ptr[2*stride]  = _mm256_extract_epi8(v, 2);
-  ptr[3*stride]  = _mm256_extract_epi8(v, 3);
-  ptr[4*stride]  = _mm256_extract_epi8(v, 4);
-  ptr[5*stride]  = _mm256_extract_epi8(v, 5);
-  ptr[6*stride]  = _mm256_extract_epi8(v, 6);
-  ptr[7*stride]  = _mm256_extract_epi8(v, 7);
-  ptr[8*stride]  = _mm256_extract_epi8(v, 8);
-  ptr[9*stride]  = _mm256_extract_epi8(v, 9);
-  ptr[10*stride] = _mm256_extract_epi8(v, 10);
-  ptr[11*stride] = _mm256_extract_epi8(v, 11);
-  ptr[12*stride] = _mm256_extract_epi8(v, 12);
-  ptr[13*stride] = _mm256_extract_epi8(v, 13);
-  ptr[14*stride] = _mm256_extract_epi8(v, 14);
-  ptr[15*stride] = _mm256_extract_epi8(v, 15);
-  ptr[16*stride] = _mm256_extract_epi8(v, 16);
-  ptr[17*stride] = _mm256_extract_epi8(v, 17);
-  ptr[18*stride] = _mm256_extract_epi8(v, 18);
-  ptr[19*stride] = _mm256_extract_epi8(v, 19);
-  ptr[20*stride] = _mm256_extract_epi8(v, 20);
-  ptr[21*stride] = _mm256_extract_epi8(v, 21);
-  ptr[22*stride] = _mm256_extract_epi8(v, 22);
-  ptr[23*stride] = _mm256_extract_epi8(v, 23);
-  ptr[24*stride] = _mm256_extract_epi8(v, 24);
-  ptr[25*stride] = _mm256_extract_epi8(v, 25);
-  ptr[26*stride] = _mm256_extract_epi8(v, 26);
-  ptr[27*stride] = _mm256_extract_epi8(v, 27);
-  ptr[28*stride] = _mm256_extract_epi8(v, 28);
-  ptr[29*stride] = _mm256_extract_epi8(v, 29);
-  ptr[30*stride] = _mm256_extract_epi8(v, 30);
-  ptr[31*stride] = _mm256_extract_epi8(v, 31);
-}
+#undef V256_EXTRACT32_FROM_PTR
+#undef V256_EXTRACT16_FROM_PTR
+#undef V256_EXTRACT8_FROM_PTR
 
 
 // integer arithmetic
@@ -343,6 +428,113 @@ BMAS_ivec static inline BMAS_vector_i64sub(BMAS_ivec a, BMAS_ivec b){return _mm2
 BMAS_ivec static inline BMAS_vector_i32sub(BMAS_ivec a, BMAS_ivec b){return _mm256_sub_epi32(a, b);}
 BMAS_ivec static inline BMAS_vector_i16sub(BMAS_ivec a, BMAS_ivec b){return _mm256_sub_epi16(a, b);}
 BMAS_ivec static inline BMAS_vector_i8sub (BMAS_ivec a, BMAS_ivec b){return _mm256_sub_epi8(a, b);}
+
+BMAS_ivec static inline BMAS_vector_i64mul(BMAS_ivec a, BMAS_ivec b){
+  // Credits: https://stackoverflow.com/questions/37296289/fastest-way-to-multiply-an-array-of-int64-t
+  __m256i bswap   = _mm256_shuffle_epi32(b,0xB1);           // swap H<->L
+  __m256i prodlh  = _mm256_mullo_epi32(a,bswap);            // 32 bit L*H products
+  __m256i zero    = _mm256_setzero_si256();                 // 0
+  __m256i prodlh2 = _mm256_hadd_epi32(prodlh,zero);         // a0Lb0H+a0Hb0L,a1Lb1H+a1Hb1L,0,0
+  __m256i prodlh3 = _mm256_shuffle_epi32(prodlh2,0x73);     // 0, a0Lb0H+a0Hb0L, 0, a1Lb1H+a1Hb1L
+  __m256i prodll  = _mm256_mul_epu32(a,b);                  // a0Lb0L,a1Lb1L, 64 bit unsigned products
+  __m256i prod    = _mm256_add_epi64(prodll,prodlh3);       // a0Lb0L+(a0Lb0H+a0Hb0L)<<32, a1Lb1L+(a1Lb1H+a1Hb1L)<<32
+  return  prod;
+}
+BMAS_ivec static inline BMAS_vector_i32mul(BMAS_ivec a, BMAS_ivec b){return _mm256_mullo_epi32(a, b);}
+BMAS_ivec static inline BMAS_vector_i16mul(BMAS_ivec a, BMAS_ivec b){return _mm256_mullo_epi16(a, b);}
+BMAS_ivec static inline BMAS_vector_i8mul (BMAS_ivec a, BMAS_ivec b){
+
+  BMAS_ivech ah1 = _mm256_extractf128_si256(a, 0);
+  BMAS_ivech bh1 = _mm256_extractf128_si256(b, 0);
+  BMAS_ivec ah1_16bit = _mm256_cvtepi8_epi16(ah1);
+  BMAS_ivec bh1_16bit = _mm256_cvtepi8_epi16(bh1);
+  BMAS_ivec v1 = _mm256_mullo_epi16(ah1_16bit, bh1_16bit);
+
+  BMAS_ivech ah2 = _mm256_extractf128_si256(a, 1);
+  BMAS_ivech bh2 = _mm256_extractf128_si256(b, 1);
+  BMAS_ivec ah2_16bit = _mm256_cvtepi8_epi16(ah2);
+  BMAS_ivec bh2_16bit = _mm256_cvtepi8_epi16(bh2);
+  BMAS_ivec v2 = _mm256_mullo_epi16(ah2_16bit, bh2_16bit);
+
+  // Collect low 8 bits into the lower 64 bits of each 128 bit half-register
+  v1 = _mm256_shuffle_epi8(v1, _mm256_setr_epi32(0x06040200, 0x0E0C0A08, 0x0, 0x0,
+                                                 0x06040200, 0x0E0C0A08, 0x0, 0x0));
+  v2 = _mm256_shuffle_epi8(v2, _mm256_setr_epi32(0x0, 0x0, 0x06040200, 0x0E0C0A08,
+                                                 0x0, 0x0, 0x06040200, 0x0E0C0A08));
+
+  // Collect low 8 bits into the lower 64 bits of each 128 bit half-register
+  v1 = _mm256_and_si256(v1, _mm256_setr_epi64x(0xFFFFFFFFFFFFFFFF, 0x0000000000000000,
+                                               0xFFFFFFFFFFFFFFFF, 0x0000000000000000));
+  v2 = _mm256_and_si256(v2, _mm256_setr_epi64x(0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+                                               0x0000000000000000, 0xFFFFFFFFFFFFFFFF));
+  BMAS_ivec v = _mm256_or_si256(v1, v2);
+  // Reorder to get in the correct order
+  v = _mm256_permute4x64_epi64(v, 0b11011000);
+  return v;
+}
+
+BMAS_ivec static inline BMAS_vector_u64mul(BMAS_ivec a, BMAS_ivec b){
+  // Identical to i64mul except for the use of mul_epu32 instead of mul_epi32
+  __m256i bswap   = _mm256_shuffle_epi32(b,0xB1);           // swap H<->L
+  __m256i prodlh  = _mm256_mullo_epi32(a,bswap);            // 32 bit L*H products
+  __m256i zero    = _mm256_setzero_si256();                 // 0
+  __m256i prodlh2 = _mm256_hadd_epi32(prodlh,zero);         // a0Lb0H+a0Hb0L,a1Lb1H+a1Hb1L,0,0
+  __m256i prodlh3 = _mm256_shuffle_epi32(prodlh2,0x73);     // 0, a0Lb0H+a0Hb0L, 0, a1Lb1H+a1Hb1L
+  __m256i prodll  = _mm256_mul_epu32(a,b);                  // a0Lb0L,a1Lb1L, 64 bit unsigned products
+  __m256i prod    = _mm256_add_epi64(prodll,prodlh3);       // a0Lb0L+(a0Lb0H+a0Hb0L)<<32, a1Lb1L+(a1Lb1H+a1Hb1L)<<32
+  return  prod;
+}
+BMAS_ivec static inline BMAS_vector_u32mul(BMAS_ivec a, BMAS_ivec b){return _mm256_mullo_epi32(a, b);}
+BMAS_ivec static inline BMAS_vector_u16mul(BMAS_ivec a, BMAS_ivec b){return _mm256_mullo_epi16(a, b);}
+BMAS_ivec static inline BMAS_vector_u8mul(BMAS_ivec a, BMAS_ivec b){
+  // Identical to i8mul except for the use of cvtepu8_epi16 instead of cvtepi8_epi16
+  BMAS_ivech ah1 = _mm256_extractf128_si256(a, 0);
+  BMAS_ivech bh1 = _mm256_extractf128_si256(b, 0);
+  BMAS_ivec ah1_16bit = _mm256_cvtepu8_epi16(ah1);
+  BMAS_ivec bh1_16bit = _mm256_cvtepu8_epi16(bh1);
+  BMAS_ivec v1 = _mm256_mullo_epi16(ah1_16bit, bh1_16bit);
+
+  BMAS_ivech ah2 = _mm256_extractf128_si256(a, 1);
+  BMAS_ivech bh2 = _mm256_extractf128_si256(b, 1);
+  BMAS_ivec ah2_16bit = _mm256_cvtepu8_epi16(ah2);
+  BMAS_ivec bh2_16bit = _mm256_cvtepu8_epi16(bh2);
+  BMAS_ivec v2 = _mm256_mullo_epi16(ah2_16bit, bh2_16bit);
+
+  // Collect low 8 bits into the lower 64 bits of each 128 bit half-register
+  v1 = _mm256_shuffle_epi8(v1, _mm256_setr_epi32(0x06040200, 0x0E0C0A08, 0x0, 0x0,
+                                                 0x06040200, 0x0E0C0A08, 0x0, 0x0));
+  v2 = _mm256_shuffle_epi8(v2, _mm256_setr_epi32(0x0, 0x0, 0x06040200, 0x0E0C0A08,
+                                                 0x0, 0x0, 0x06040200, 0x0E0C0A08));
+
+  // Collect low 8 bits into the lower 64 bits of each 128 bit half-register
+  v1 = _mm256_and_si256(v1, _mm256_setr_epi64x(0xFFFFFFFFFFFFFFFF, 0x0000000000000000,
+                                               0xFFFFFFFFFFFFFFFF, 0x0000000000000000));
+  v2 = _mm256_and_si256(v2, _mm256_setr_epi64x(0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+                                               0x0000000000000000, 0xFFFFFFFFFFFFFFFF));
+  BMAS_ivec v = _mm256_or_si256(v1, v2);
+  // Reorder to get in the correct order
+  v = _mm256_permute4x64_epi64(v, 0b11011000);
+  return v;
+}
+
+
+BMAS_ivec static inline BMAS_vector_i64abs(BMAS_ivec a){
+  __m256i lt0_mask = _mm256_cmpgt_epi64(_mm256_setzero_si256(), a);
+  // Take 2's complement
+  __m256i max64bit = _mm256_and_si256(lt0_mask,
+                                      _mm256_set_epi64x(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+                                                        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF));
+  a = _mm256_sub_epi64(max64bit, a);
+  __m256i singlebit = _mm256_and_si256(lt0_mask,
+                                       _mm256_set_epi64x(0x1,0x1,0x1,0x1));
+  a = _mm256_add_epi64(singlebit, a);
+  return a;
+}
+BMAS_ivec static inline BMAS_vector_i32abs(BMAS_ivec a){return _mm256_abs_epi32(a);}
+BMAS_ivec static inline BMAS_vector_i16abs(BMAS_ivec a){return _mm256_abs_epi16(a);}
+BMAS_ivec static inline BMAS_vector_i8abs (BMAS_ivec a){return _mm256_abs_epi8(a);}
+
+
 
 // float comparison
 
@@ -386,6 +578,102 @@ BMAS_dbool static inline BMAS_vector_dgt(BMAS_dvec a, BMAS_dvec b){
 BMAS_dbool static inline BMAS_vector_dge(BMAS_dvec a, BMAS_dvec b){
   return _mm256_cmp_pd(a, b, _CMP_GE_OQ);
 }
+
+// boolean logical
+BMAS_ivec static inline BMAS_vector_i8and(BMAS_ivec a, BMAS_ivec b){return _mm256_and_si256(a, b);}
+BMAS_ivec static inline BMAS_vector_i8or (BMAS_ivec a, BMAS_ivec b){return _mm256_or_si256(a, b);}
+BMAS_ivec static inline BMAS_vector_i8xor(BMAS_ivec a, BMAS_ivec b){return _mm256_xor_si256(a, b);}
+BMAS_ivec static inline BMAS_vector_i8not(BMAS_ivec a){
+  // intel's page lists epi8 as having a minimal latency-throughtput
+  return _mm256_xor_si256(a, _mm256_cmpeq_epi8(a, a));
+}
+BMAS_ivec static inline BMAS_vector_i8andnot(BMAS_ivec a, BMAS_ivec b){return _mm256_andnot_si256(a, b);}
+
+
+// integer comparison
+
+
+BMAS_ivec static inline BMAS_vector_i8lt (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpgt_epi8(b, a);}
+BMAS_ivec static inline BMAS_vector_i8le (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpgt_epi8(a, b));}
+BMAS_ivec static inline BMAS_vector_i8eq (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpeq_epi8(a, b);}
+BMAS_ivec static inline BMAS_vector_i8neq(BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpeq_epi8(a, b));}
+BMAS_ivec static inline BMAS_vector_i8gt (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpgt_epi8(a, b);}
+BMAS_ivec static inline BMAS_vector_i8ge (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpgt_epi8(b, a));}
+
+BMAS_ivec static inline BMAS_vector_i16lt (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpgt_epi16(b, a);}
+BMAS_ivec static inline BMAS_vector_i16le (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpgt_epi16(a, b));}
+BMAS_ivec static inline BMAS_vector_i16eq (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpeq_epi16(a, b);}
+BMAS_ivec static inline BMAS_vector_i16neq(BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpeq_epi16(a, b));}
+BMAS_ivec static inline BMAS_vector_i16gt (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpgt_epi16(a, b);}
+BMAS_ivec static inline BMAS_vector_i16ge (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpgt_epi16(b, a));}
+
+BMAS_ivec static inline BMAS_vector_i32lt (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpgt_epi32(b, a);}
+BMAS_ivec static inline BMAS_vector_i32le (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpgt_epi32(a, b));}
+BMAS_ivec static inline BMAS_vector_i32eq (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpeq_epi32(a, b);}
+BMAS_ivec static inline BMAS_vector_i32neq(BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpeq_epi32(a, b));}
+BMAS_ivec static inline BMAS_vector_i32gt (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpgt_epi32(a, b);}
+BMAS_ivec static inline BMAS_vector_i32ge (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpgt_epi32(b, a));}
+
+BMAS_ivec static inline BMAS_vector_i64lt (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpgt_epi64(b, a);}
+BMAS_ivec static inline BMAS_vector_i64le (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpgt_epi64(a, b));}
+BMAS_ivec static inline BMAS_vector_i64eq (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpeq_epi64(a, b);}
+BMAS_ivec static inline BMAS_vector_i64neq(BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpeq_epi64(a, b));}
+BMAS_ivec static inline BMAS_vector_i64gt (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpgt_epi64(a, b);}
+BMAS_ivec static inline BMAS_vector_i64ge (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpgt_epi64(b, a));}
+
+
+
+BMAS_ivec static inline BMAS_vector_u8gt (BMAS_ivec a, BMAS_ivec b){
+  BMAS_ivec fill = _mm256_set_epi32(0x80808080, 0x80808080, 0x80808080, 0x80808080,
+                                    0x80808080, 0x80808080, 0x80808080, 0x80808080);
+  a = _mm256_sub_epi8(a, fill);
+  b = _mm256_sub_epi8(b, fill);
+  return _mm256_cmpgt_epi8(a, b);
+}
+BMAS_ivec static inline BMAS_vector_u8lt (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_u8gt(b, a);}
+BMAS_ivec static inline BMAS_vector_u8le (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(BMAS_vector_u8gt(a, b));}
+BMAS_ivec static inline BMAS_vector_u8eq (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpeq_epi8(a, b);}
+BMAS_ivec static inline BMAS_vector_u8neq(BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpeq_epi8(a, b));}
+BMAS_ivec static inline BMAS_vector_u8ge (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(BMAS_vector_u8gt(b, a));}
+
+BMAS_ivec static inline BMAS_vector_u16gt (BMAS_ivec a, BMAS_ivec b){
+  BMAS_ivec fill = _mm256_set_epi32(0x80008000, 0x80008000, 0x80008000, 0x80008000,
+                                    0x80008000, 0x80008000, 0x80008000, 0x80008000);
+  a = _mm256_sub_epi16(a, fill);
+  b = _mm256_sub_epi16(b, fill);
+  return _mm256_cmpgt_epi16(a, b);
+}
+BMAS_ivec static inline BMAS_vector_u16lt (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_u16gt(b, a);}
+BMAS_ivec static inline BMAS_vector_u16le (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(BMAS_vector_u16gt(a, b));}
+BMAS_ivec static inline BMAS_vector_u16eq (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpeq_epi16(a, b);}
+BMAS_ivec static inline BMAS_vector_u16neq(BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpeq_epi16(a, b));}
+BMAS_ivec static inline BMAS_vector_u16ge (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(BMAS_vector_u16gt(b, a));}
+
+BMAS_ivec static inline BMAS_vector_u32gt (BMAS_ivec a, BMAS_ivec b){
+  BMAS_ivec fill = _mm256_set_epi32(0x80000000, 0x80000000, 0x80000000, 0x80000000,
+                                    0x80000000, 0x80000000, 0x80000000, 0x80000000);
+  a = _mm256_sub_epi32(a, fill);
+  b = _mm256_sub_epi32(b, fill);
+  return _mm256_cmpgt_epi32(a, b);
+}
+BMAS_ivec static inline BMAS_vector_u32lt (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_u32gt(b, a);}
+BMAS_ivec static inline BMAS_vector_u32le (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(BMAS_vector_u32gt(a, b));}
+BMAS_ivec static inline BMAS_vector_u32eq (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpeq_epi32(a, b);}
+BMAS_ivec static inline BMAS_vector_u32neq(BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpeq_epi32(a, b));}
+BMAS_ivec static inline BMAS_vector_u32ge (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(BMAS_vector_u32gt(b, a));}
+
+BMAS_ivec static inline BMAS_vector_u64gt (BMAS_ivec a, BMAS_ivec b){
+  BMAS_ivec fill = _mm256_set_epi64x(0x8000000000000000, 0x8000000000000000,
+                                     0x8000000000000000, 0x8000000000000000);
+  a = _mm256_sub_epi64(a, fill);
+  b = _mm256_sub_epi64(b, fill);
+  return _mm256_cmpgt_epi64(a, b);
+}
+BMAS_ivec static inline BMAS_vector_u64lt (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpgt_epi64(b, a);}
+BMAS_ivec static inline BMAS_vector_u64le (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpgt_epi64(a, b));}
+BMAS_ivec static inline BMAS_vector_u64eq (BMAS_ivec a, BMAS_ivec b){return _mm256_cmpeq_epi64(a, b);}
+BMAS_ivec static inline BMAS_vector_u64neq(BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpeq_epi64(a, b));}
+BMAS_ivec static inline BMAS_vector_u64ge (BMAS_ivec a, BMAS_ivec b){return BMAS_vector_i8not(_mm256_cmpgt_epi64(b, a));}
 
 
 // trigonometric
