@@ -266,6 +266,22 @@ two_arg_fn(u32ge, int32_t, int32_t);
 two_arg_fn(u16ge, int16_t, int16_t);
 two_arg_fn(u8ge,  int8_t,  int8_t);
 
+two_arg_fn(i64sra, int64_t, int64_t);
+two_arg_fn(i32sra, int32_t, int32_t);
+two_arg_fn(i16sra, int16_t, int16_t);
+two_arg_fn(i8sra,  int8_t,  int8_t);
+
+two_arg_fn(u64srl, uint64_t, uint64_t);
+two_arg_fn(u32srl, uint32_t, uint32_t);
+two_arg_fn(u16srl, uint16_t, uint16_t);
+two_arg_fn(u8srl,  uint8_t,  uint8_t);
+
+two_arg_fn(u64sll, uint64_t, uint64_t);
+two_arg_fn(u32sll, uint32_t, uint32_t);
+two_arg_fn(u16sll, uint16_t, uint16_t);
+two_arg_fn(u8sll,  uint8_t,  uint8_t);
+
+
 
 void BMAS_i8not(const long N, int8_t* x, const long inc_x, int8_t* out, const long inc_out);
 two_arg_fn(i8and, int8_t, int8_t);
@@ -299,14 +315,37 @@ one_arg_fn(dround, double, double);
 one_arg_fn(dfabs,  double, double);
 
 
-#define sum_fn(name, itype, otype) otype BMAS_##name(const long n, itype* x, const int64_t incx);
-sum_fn(ssum, float, float);
-sum_fn(dsum, double, double);
+#define one_arg_reduce_fn(name, itype, otype) otype BMAS_##name(const long n, itype* x, const int64_t incx);
+one_arg_reduce_fn(ssum, float, float);
+one_arg_reduce_fn(dsum, double, double);
 // Perhaps these should be larger than int8_t and int32_t?
-sum_fn(i8sum,  int8_t,  int8_t);
-sum_fn(i16sum, int16_t, int16_t);
-sum_fn(i32sum, int32_t, int32_t);
-sum_fn(i64sum, int64_t, int64_t);
+one_arg_reduce_fn(i8sum,  int8_t,  int8_t);
+one_arg_reduce_fn(i16sum, int16_t, int16_t);
+one_arg_reduce_fn(i32sum, int32_t, int32_t);
+one_arg_reduce_fn(i64sum, int64_t, int64_t);
+
+one_arg_reduce_fn(smax, float, float);
+one_arg_reduce_fn(dmax, double, double);
+one_arg_reduce_fn(i8max,  int8_t,  int8_t);
+one_arg_reduce_fn(i16max, int16_t, int16_t);
+one_arg_reduce_fn(i32max, int32_t, int32_t);
+one_arg_reduce_fn(i64max, int64_t, int64_t);
+one_arg_reduce_fn(u8max,  uint8_t,  uint8_t);
+one_arg_reduce_fn(u16max, uint16_t, uint16_t);
+one_arg_reduce_fn(u32max, uint32_t, uint32_t);
+one_arg_reduce_fn(u64max, uint64_t, uint64_t);
+
+one_arg_reduce_fn(smin, float, float);
+one_arg_reduce_fn(dmin, double, double);
+one_arg_reduce_fn(i8min,  int8_t,  int8_t);
+one_arg_reduce_fn(i16min, int16_t, int16_t);
+one_arg_reduce_fn(i32min, int32_t, int32_t);
+one_arg_reduce_fn(i64min, int64_t, int64_t);
+one_arg_reduce_fn(u8min,  uint8_t,  uint8_t);
+one_arg_reduce_fn(u16min, uint16_t, uint16_t);
+one_arg_reduce_fn(u32min, uint32_t, uint32_t);
+one_arg_reduce_fn(u64min, uint64_t, uint64_t);
+
 
 #define dot_fn(name, itype, otype) \
   otype BMAS_##name(const long n,\

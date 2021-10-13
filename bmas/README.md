@@ -28,6 +28,11 @@ The actual computation is done by simd functions from hardware simd instructions
 
 *Currently, [libmvec](https://github.com/sgallagher/glibc/blob/master/sysdeps/unix/sysv/linux/x86_64/libmvec.abilist) is used for single-float sine and cosine for AVX2, since they were found to be faster than their SLEEF counterparts.
 
+### Other notes:
+
+- gcc uses arithmetic shift on signed values and logical shift on unsigned values.
+- `long` has been used as equivalent to 8 bytes; perhaps this will be fixed in the future to account for machine-OS specificity
+
 ## AVX2 Status
 
 SSE and AVX512 support exists to a limited extent due to limited developer time.
@@ -61,6 +66,8 @@ SSE and AVX512 support exists to a limited extent due to limited developer time.
 | abs (also fabs below)              | -       | -       | +     | +     | +     | +    | -      | -      | -      | -     |
 | sum                                | +       | +       | +     | +     | +     | +    | -      | -      | -      | -     |
 | dot                                | +       | +       | +     | +     | +     | +    | -      | -      | -      | -     |
+| min                                | +       | +       | +     | +     | +     | +    | +      | +      | +      | +     |
+| max                                | +       | +       | +     | +     | +     | +    | +      | +      | +      | +     |
 | **Function \ Data type**           | float32 | float64 | int64 | int32 | int16 | int8 | uint64 | uint32 | uint16 | uint8 |
 | lt                                 | +       | +       | +     | +     | +     | +    | +      | +      | +      | +     |
 | le                                 | +       | +       | +     | +     | +     | +    | +      | +      | +      | +     |
@@ -74,6 +81,8 @@ SSE and AVX512 support exists to a limited extent due to limited developer time.
 | or                                 | -       | -       | -     | -     | -     | +    | -      | -      | -      | -     |
 | nor                                | -       | -       | -     | -     | -     | +    | -      | -      | -      | -     |
 | andnot                             | -       | -       | -     | -     | -     | +    | -      | -      | -      | -     |
+| srl                                | -       | -       | -     | -     | -     | -    | +      | +      | +      | +     |
+| sra                                | -       | -       | +     | +     | +     | +    | -      | -      | -      | -     |
 
 
 
