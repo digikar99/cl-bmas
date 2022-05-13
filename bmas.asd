@@ -1,6 +1,8 @@
 (defsystem "bmas"
   :pathname ""
-  :licence "MIT"
+  :author "Shubhamkar B. Ayare (shubhamayare@yahoo.co.in)"
+  :description "A Common Lisp wrapper around BMAS - a BLAS like library with support for integers, basic math operations, trigonometry, and more."
+  :license "MIT"
   :depends-on ("uiop"
                "cffi"
                "cl-autowrap")
