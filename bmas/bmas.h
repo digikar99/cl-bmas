@@ -15,13 +15,11 @@
                    itype* y, const long incy,       \
                    otype* out, const long inc_out);
 
-/* Example expansion of one_arg_fn(sin):
- * void BMAS_ssin(const long n,
- *               float* x, const long incx,
- *               float* out, const long inc_out);
- * void BMAS_dsin(const long n,
- *               double* x, const long incx,
- *               double* out, const long inc_out);
+/* Example expansion of two_arg_fn(sadd, float, float):
+ * void BMAS_sadd(const long n,
+ *                float* x, const long incx,
+ *                float* y, const long incy,
+ *                float* out, const long inc_out);
  */
 
 #define copy_fn(prefix, type) \
@@ -68,27 +66,16 @@ cast_to_double(u32, uint32_t);
 cast_to_double(u64, uint64_t);
 
 
-void BMAS_cast_ds(const long n,
-                  double* x, const long incx,
-                  float* y, const long incy);
-
-void BMAS_cast_i8s(const long n,
-                   int8_t* x, const long incx,
-                   float* y, const long incy);
-void BMAS_cast_i16s(const long n,
-                    int8_t* x, const long incx,
-                    float* y, const long incy);
-void BMAS_cast_i32s(const long n,
-                    int8_t* x, const long incx,
-                    float* y, const long incy);
-
 #define one_arg_fn(name, itype, otype)                  \
   void BMAS_##name(const long n,                        \
                    itype* x, const int64_t incx,        \
-                   otype* out, const int64_t inc_out);  \
-  void BMAS_##name(const long n,                        \
-                   itype* x, const int64_t incx,        \
                    otype* out, const int64_t inc_out);
+
+/* Example expansion of one_arg_fn(ssin, float, float):
+ * void BMAS_ssin(const long n,
+ *               float* x, const long incx,
+ *               float* out, const long inc_out);
+ */
 
 one_arg_fn(i8abs,  int8_t,  int8_t);
 one_arg_fn(i16abs, int16_t, int16_t);
@@ -175,15 +162,28 @@ two_arg_fn(dneq, double, _Bool);
 two_arg_fn(dgt, double, _Bool);
 two_arg_fn(dge, double, _Bool);
 
+
+
 two_arg_fn(i64add, int64_t, int64_t);
 two_arg_fn(i32add, int32_t, int32_t);
 two_arg_fn(i16add, int16_t, int16_t);
-two_arg_fn(i8add,  int8_t, int8_t);
+two_arg_fn(i8add,  int8_t,  int8_t);
 
 two_arg_fn(i64sub, int64_t, int64_t);
 two_arg_fn(i32sub, int32_t, int32_t);
 two_arg_fn(i16sub, int16_t, int16_t);
-two_arg_fn(i8sub,  int8_t, int8_t);
+two_arg_fn(i8sub,  int8_t,  int8_t);
+
+two_arg_fn(i64mul, int64_t, int64_t);
+two_arg_fn(i32mul, int32_t, int32_t);
+two_arg_fn(i16mul, int16_t, int16_t);
+two_arg_fn(i8mul,  int8_t,  int8_t);
+
+two_arg_fn(u64mul, uint64_t, uint64_t);
+two_arg_fn(u32mul, uint32_t, uint32_t);
+two_arg_fn(u16mul, uint16_t, uint16_t);
+two_arg_fn(u8mul,  uint8_t,  uint8_t);
+
 
 two_arg_fn(i64lt, int64_t, int64_t);
 two_arg_fn(i32lt, int32_t, int32_t);
@@ -215,26 +215,6 @@ two_arg_fn(i32ge, int32_t, int32_t);
 two_arg_fn(i16ge, int16_t, int16_t);
 two_arg_fn(i8ge,  int8_t,  int8_t);
 
-
-two_arg_fn(i64add, int64_t, int64_t);
-two_arg_fn(i32add, int32_t, int32_t);
-two_arg_fn(i16add, int16_t, int16_t);
-two_arg_fn(i8add,  int8_t,  int8_t);
-
-two_arg_fn(i64sub, int64_t, int64_t);
-two_arg_fn(i32sub, int32_t, int32_t);
-two_arg_fn(i16sub, int16_t, int16_t);
-two_arg_fn(i8sub,  int8_t,  int8_t);
-
-two_arg_fn(i64mul, int64_t, int64_t);
-two_arg_fn(i32mul, int32_t, int32_t);
-two_arg_fn(i16mul, int16_t, int16_t);
-two_arg_fn(i8mul,  int8_t,  int8_t);
-
-two_arg_fn(u64mul, uint64_t, uint64_t);
-two_arg_fn(u32mul, uint32_t, uint32_t);
-two_arg_fn(u16mul, uint16_t, uint16_t);
-two_arg_fn(u8mul,  uint8_t,  uint8_t);
 
 two_arg_fn(u64lt, int64_t, int64_t);
 two_arg_fn(u32lt, int32_t, int32_t);
