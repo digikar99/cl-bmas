@@ -140,6 +140,8 @@ two_arg_fn(sadd,   float, float);
 two_arg_fn(ssub,   float, float);
 two_arg_fn(smul,   float, float);
 two_arg_fn(sdiv,   float, float);
+two_arg_fn(smin,   float, float);
+two_arg_fn(smax,   float, float);
 
 two_arg_fn(dpow,   double, double);
 two_arg_fn(datan2, double, double);
@@ -147,6 +149,8 @@ two_arg_fn(dadd,   double, double);
 two_arg_fn(dsub,   double, double);
 two_arg_fn(dmul,   double, double);
 two_arg_fn(ddiv,   double, double);
+two_arg_fn(dmin,   double, double);
+two_arg_fn(dmax,   double, double);
 
 two_arg_fn(slt, float, _Bool);
 two_arg_fn(sle, float, _Bool);
@@ -183,6 +187,26 @@ two_arg_fn(u64mul, uint64_t, uint64_t);
 two_arg_fn(u32mul, uint32_t, uint32_t);
 two_arg_fn(u16mul, uint16_t, uint16_t);
 two_arg_fn(u8mul,  uint8_t,  uint8_t);
+
+two_arg_fn(i64min, int64_t, int64_t);
+two_arg_fn(i32min, int32_t, int32_t);
+two_arg_fn(i16min, int16_t, int16_t);
+two_arg_fn(i8min,  int8_t,  int8_t);
+
+two_arg_fn(u64min, uint64_t, uint64_t);
+two_arg_fn(u32min, uint32_t, uint32_t);
+two_arg_fn(u16min, uint16_t, uint16_t);
+two_arg_fn(u8min,  uint8_t,  uint8_t);
+
+two_arg_fn(i64max, int64_t, int64_t);
+two_arg_fn(i32max, int32_t, int32_t);
+two_arg_fn(i16max, int16_t, int16_t);
+two_arg_fn(i8max,  int8_t,  int8_t);
+
+two_arg_fn(u64max, uint64_t, uint64_t);
+two_arg_fn(u32max, uint32_t, uint32_t);
+two_arg_fn(u16max, uint16_t, uint16_t);
+two_arg_fn(u8max,  uint8_t,  uint8_t);
 
 
 two_arg_fn(i64lt, int64_t, int64_t);
@@ -304,27 +328,27 @@ one_arg_reduce_fn(i16sum, int16_t, int16_t);
 one_arg_reduce_fn(i32sum, int32_t, int32_t);
 one_arg_reduce_fn(i64sum, int64_t, int64_t);
 
-one_arg_reduce_fn(smax, float, float);
-one_arg_reduce_fn(dmax, double, double);
-one_arg_reduce_fn(i8max,  int8_t,  int8_t);
-one_arg_reduce_fn(i16max, int16_t, int16_t);
-one_arg_reduce_fn(i32max, int32_t, int32_t);
-one_arg_reduce_fn(i64max, int64_t, int64_t);
-one_arg_reduce_fn(u8max,  uint8_t,  uint8_t);
-one_arg_reduce_fn(u16max, uint16_t, uint16_t);
-one_arg_reduce_fn(u32max, uint32_t, uint32_t);
-one_arg_reduce_fn(u64max, uint64_t, uint64_t);
+one_arg_reduce_fn(shmax, float, float);
+one_arg_reduce_fn(dhmax, double, double);
+one_arg_reduce_fn(i8hmax,  int8_t,  int8_t);
+one_arg_reduce_fn(i16hmax, int16_t, int16_t);
+one_arg_reduce_fn(i32hmax, int32_t, int32_t);
+one_arg_reduce_fn(i64hmax, int64_t, int64_t);
+one_arg_reduce_fn(u8hmax,  uint8_t,  uint8_t);
+one_arg_reduce_fn(u16hmax, uint16_t, uint16_t);
+one_arg_reduce_fn(u32hmax, uint32_t, uint32_t);
+one_arg_reduce_fn(u64hmax, uint64_t, uint64_t);
 
-one_arg_reduce_fn(smin, float, float);
-one_arg_reduce_fn(dmin, double, double);
-one_arg_reduce_fn(i8min,  int8_t,  int8_t);
-one_arg_reduce_fn(i16min, int16_t, int16_t);
-one_arg_reduce_fn(i32min, int32_t, int32_t);
-one_arg_reduce_fn(i64min, int64_t, int64_t);
-one_arg_reduce_fn(u8min,  uint8_t,  uint8_t);
-one_arg_reduce_fn(u16min, uint16_t, uint16_t);
-one_arg_reduce_fn(u32min, uint32_t, uint32_t);
-one_arg_reduce_fn(u64min, uint64_t, uint64_t);
+one_arg_reduce_fn(shmin, float, float);
+one_arg_reduce_fn(dhmin, double, double);
+one_arg_reduce_fn(i8hmin,  int8_t,  int8_t);
+one_arg_reduce_fn(i16hmin, int16_t, int16_t);
+one_arg_reduce_fn(i32hmin, int32_t, int32_t);
+one_arg_reduce_fn(i64hmin, int64_t, int64_t);
+one_arg_reduce_fn(u8hmin,  uint8_t,  uint8_t);
+one_arg_reduce_fn(u16hmin, uint16_t, uint16_t);
+one_arg_reduce_fn(u32hmin, uint32_t, uint32_t);
+one_arg_reduce_fn(u64hmin, uint64_t, uint64_t);
 
 
 #define dot_fn(name, itype, otype) \
