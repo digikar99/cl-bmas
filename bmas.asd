@@ -25,6 +25,7 @@
                              (:static-file "bmas.x86_64-unknown-linux-android.spec")
                              (:static-file "bmas.x86_64-unknown-openbsd.spec")))
                (:module "src"
+                :serial t
                 :components ((:file "package")
                              (:file "noninline")
                              ;; FIXME: Simplify after autowrap adds an inline option
