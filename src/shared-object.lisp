@@ -10,15 +10,18 @@
 
 (in-package :bmas)
 
-(cl:let ((shared-library-pathname (cl:merge-pathnames #P"bmas/libbmas.so" *src-dir*)))
-  (cl:unless (cl:probe-file shared-library-pathname)
-    (uiop:run-program
-     (uiop:strcat "cd "
-                  "'"
-                  (cl:namestring (cl:merge-pathnames #P"bmas/" *src-dir*))
-                  "'"
-                  " && bash '"
-                  (cl:namestring (cl:merge-pathnames #P"bmas/make.sh" *src-dir*))
-                  "'")
-     :error-output cl:t))
-  (cffi:load-foreign-library shared-library-pathname))
+(cffi:define-foreign-library libbmas
+  (cl:t #.(cl:let ((shared-library-pathname (cl:merge-pathnames #P"bmas/libbmas.so" *src-dir*)))
+            (cl:unless (cl:probe-file shared-library-pathname)
+              (uiop:run-program
+               (uiop:strcat "cd "
+                            "'"
+                            (cl:namestring (cl:merge-pathnames #P"bmas/" *src-dir*))
+                            "'"
+                            " && bash '"
+                            (cl:namestring (cl:merge-pathnames #P"bmas/make.sh" *src-dir*))
+                            "'")
+               :error-output cl:t))
+            shared-library-pathname)))
+
+(cffi:load-foreign-library 'libbmas)
