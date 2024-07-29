@@ -7,7 +7,8 @@
                "cffi"
                "cl-autowrap")
   :serial t
-  :components ((:module "specs"
+  :components ((:static-file "bmas/bmas.h")
+               (:module "specs"
                 :components ((:static-file "bmas.aarch64-pc-linux-gnu.spec")
                              (:static-file "bmas.aarch64-unknown-linux-android.spec")
                              (:static-file "bmas.arm-pc-linux-gnu.spec")
