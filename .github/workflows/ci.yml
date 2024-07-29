@@ -25,6 +25,7 @@ jobs:
     - name: Download implementation
       env:
         LISP: ${{ matrix.lisp }}
+        OS: ${{ matrix.os }}
       run: |
           pwd
           ls -l
